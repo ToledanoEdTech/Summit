@@ -1,0 +1,147 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isAdmin() {
+      // Allow specific emails to be admins implicitly, plus anyone else set to admin in the database
+      return isSignedIn() && (
+        request.auth.token.email == 'yosseftole@zvialod.com' || 
+        request.auth.token.email == 'yossitole@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isSameUser(userId) {
+      return request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasOnly(['role', 'displayName', 'email', 'trackIds', 'createdAt']) &&
+          data.role in ['admin', 'student'] &&
+          data.displayName is string && data.displayName.size() <= 100 &&
+          data.email is string && data.email.size() <= 150 &&
+          (data.trackIds == null || (data.trackIds is list && data.trackIds.size() <= 50)) &&
+          data.createdAt == request.time;
+      }
+
+      function isValidUserUpdate(data) {
+        return data.keys().hasOnly(['role', 'displayName', 'email', 'trackIds', 'createdAt']) &&
+          data.role in ['admin', 'student'] &&
+          data.displayName is string && data.displayName.size() <= 100 &&
+          data.email is string && data.email.size() <= 150 &&
+          (data.trackIds == null || (data.trackIds is list && data.trackIds.size() <= 50)) &&
+          data.createdAt == existing().createdAt;
+      }
+
+      allow get: if isSignedIn() && (isSameUser(userId) || isAdmin());
+      allow list: if isSignedIn() && (isSameUser(userId) || isAdmin());
+      allow create: if isSignedIn() && isSameUser(userId) && isValidUser(incoming());
+      allow update: if isSignedIn() && (isSameUser(userId) || isAdmin()) && isValidUserUpdate(incoming()) && (
+        (isSameUser(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'trackIds'])) || 
+        isAdmin() || 
+        (incoming().diff(existing()).affectedKeys().size() == 0)
+      );
+    }
+
+    match /tracks/{trackId} {
+      function isValidTrack(data) {
+        return data.keys().hasOnly(['name', 'description', 'category', 'createdBy', 'createdAt']) &&
+          data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+          data.description is string && data.description.size() <= 500 &&
+          data.category is string && data.category.size() <= 50 &&
+          data.createdBy == request.auth.uid &&
+          data.createdAt == request.time;
+      }
+
+      function isValidTrackUpdate(data) {
+        return data.keys().hasOnly(['name', 'description', 'category', 'createdBy', 'createdAt']) &&
+          data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+          data.description is string && data.description.size() <= 500 &&
+          data.category is string && data.category.size() <= 50 &&
+          data.createdBy == existing().createdBy &&
+          data.createdAt == existing().createdAt;
+      }
+
+      allow read: if isSignedIn(); // All signed in users can see tracks
+      allow create: if isAdmin() && isValidTrack(incoming());
+      allow update: if isAdmin() && isValidTrackUpdate(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      function isValidTask(data) {
+        return data.keys().hasOnly(['trackId', 'title', 'description', 'maxGrade', 'createdBy', 'createdAt']) &&
+          data.trackId is string && data.title is string && data.title.size() <= 200 &&
+          data.description is string && data.description.size() <= 2000 &&
+          data.maxGrade is number && data.maxGrade >= 0 && data.maxGrade <= 100 &&
+          data.createdBy == request.auth.uid &&
+          data.createdAt == request.time &&
+          exists(/databases/$(database)/documents/tracks/$(data.trackId));
+      }
+
+      function isValidTaskUpdate(data) {
+        return data.keys().hasOnly(['trackId', 'title', 'description', 'maxGrade', 'createdBy', 'createdAt']) &&
+          data.trackId == existing().trackId && 
+          data.title is string && data.title.size() <= 200 &&
+          data.description is string && data.description.size() <= 2000 &&
+          data.maxGrade is number && data.maxGrade >= 0 && data.maxGrade <= 100 &&
+          data.createdBy == existing().createdBy &&
+          data.createdAt == existing().createdAt;
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidTask(incoming());
+      allow update: if isAdmin() && isValidTaskUpdate(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /studentProgress/{progressId} {
+      function isValidProgress(data) {
+        return data.keys().hasOnly(['studentId', 'taskId', 'completed', 'grade', 'notes', 'updatedAt']) &&
+          data.studentId == request.auth.uid &&
+          data.taskId is string && data.taskId.size() > 0 && 
+          data.completed is bool &&
+          (data.grade == null || (data.grade is number && data.grade >= 0 && data.grade <= 100)) &&
+          (data.notes == null || (data.notes is string && data.notes.size() <= 1000)) &&
+          data.updatedAt == request.time &&
+          exists(/databases/$(database)/documents/tasks/$(data.taskId));
+      }
+
+      function isValidProgressUpdate(data) {
+        return data.keys().hasOnly(['studentId', 'taskId', 'completed', 'grade', 'notes', 'updatedAt']) &&
+          data.studentId == existing().studentId &&
+          data.taskId == existing().taskId &&
+          data.completed is bool &&
+          (data.grade == null || (data.grade is number && data.grade >= 0 && data.grade <= 100)) &&
+          (data.notes == null || (data.notes is string && data.notes.size() <= 1000)) &&
+          data.updatedAt == request.time;
+      }
+
+      // owner can read their own, admin can read any progress
+      allow get: if isSignedIn() && (existing().studentId == request.auth.uid || isAdmin());
+      // list requires query by studentId usually
+      allow list: if isSignedIn() && (resource.data.studentId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() && isValidProgress(incoming()) && incoming().studentId == request.auth.uid;
+      allow update: if isSignedIn() && 
+                    (existing().studentId == request.auth.uid || isAdmin()) && 
+                    isValidProgressUpdate(incoming()) && 
+                    (
+                      (existing().studentId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'grade', 'notes', 'updatedAt'])) ||
+                      isAdmin()
+                    );
+      allow delete: if isAdmin() || (isSignedIn() && existing().studentId == request.auth.uid);
+    }
+  }
+}

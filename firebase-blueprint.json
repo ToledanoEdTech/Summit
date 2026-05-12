@@ -1,0 +1,137 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the system, either admin or student.",
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["admin", "student"],
+          "description": "User role."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Full name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address."
+        },
+        "trackIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Array of track IDs the user belongs to. For admin, this can be empty."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["role", "displayName", "email", "createdAt"]
+    },
+    "Track": {
+      "title": "Track",
+      "description": "A study track, major, or group.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the track."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the track."
+        },
+        "category": {
+          "type": "string",
+          "description": "Category like 'מגמה', 'הקבצה' etc."
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Admin who created it."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["name", "category", "createdBy", "createdAt"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A task or assignment for a specific track.",
+      "type": "object",
+      "properties": {
+        "trackId": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "maxGrade": {
+          "type": "number",
+          "description": "Maximum grade for this task. Can be 100 for exams, or 0 if passing is just a checkmark."
+        },
+        "createdBy": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["trackId", "title", "maxGrade", "createdBy", "createdAt"]
+    },
+    "StudentTaskProgress": {
+      "title": "StudentTaskProgress",
+      "description": "Progress of a student on a specific task.",
+      "type": "object",
+      "properties": {
+        "studentId": {
+          "type": "string"
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "grade": {
+          "type": "number",
+          "description": "Grade obtained by student."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Any notes from the student."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["studentId", "taskId", "completed", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Users collection."
+    },
+    "/tracks/{trackId}": {
+      "schema": { "$ref": "#/entities/Track" },
+      "description": "Study tracks."
+    },
+    "/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/Task" },
+      "description": "Tasks within tracks."
+    },
+    "/studentProgress/{progressId}": {
+      "schema": { "$ref": "#/entities/StudentTaskProgress" },
+      "description": "Student task completions."
+    }
+  }
+}
