@@ -31,6 +31,7 @@ export default function AdminDashboard() {
   const [taskDesc, setTaskDesc] = useState('');
   const [taskTrackId, setTaskTrackId] = useState<string>("");
   const [taskMaxGrade, setTaskMaxGrade] = useState('100');
+  const [taskBagrutPercentage, setTaskBagrutPercentage] = useState('0');
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -102,12 +103,15 @@ export default function AdminDashboard() {
     try {
       const parsedGrade = parseInt(taskMaxGrade);
       const gradeToSave = isNaN(parsedGrade) ? 100 : parsedGrade;
+      const parsedBagrut = parseInt(taskBagrutPercentage);
+      const bagrutPercToSave = isNaN(parsedBagrut) ? 0 : parsedBagrut;
       
       await addDoc(collection(db, 'tasks'), {
         title: taskTitle,
         description: taskDesc,
         trackId: taskTrackId,
         maxGrade: gradeToSave,
+        bagrutPercentage: bagrutPercToSave,
         createdBy: user?.uid,
         createdAt: serverTimestamp()
       });
@@ -116,6 +120,7 @@ export default function AdminDashboard() {
       setTaskTitle('');
       setTaskDesc('');
       setTaskMaxGrade('100');
+      setTaskBagrutPercentage('0');
       fetchData();
     } catch (e) {
       toast.error('שגיאה ביצירת המטלה');
@@ -287,6 +292,10 @@ export default function AdminDashboard() {
                             <Label>ציון מקסימלי (ללא ציון: 0)</Label>
                             <Input type="number" value={taskMaxGrade} onChange={(e) => setTaskMaxGrade(e.target.value)} />
                         </div>
+                        <div className="space-y-2">
+                            <Label>אחוז מהבגרות (%)</Label>
+                            <Input type="number" value={taskBagrutPercentage} onChange={(e) => setTaskBagrutPercentage(e.target.value)} />
+                        </div>
                         <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleCreateTask}>שמור משימה</Button>
                     </div>
                 </DialogContent>
@@ -296,6 +305,7 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 gap-6">
                 {tracks.map(track => {
                     const trackTasks = tasks.filter(t => t.trackId === track.id);
+                    const totalBagrutPercent = trackTasks.reduce((acc, t) => acc + (t.bagrutPercentage || 0), 0);
                     return (
                         <div key={track.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                              <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
@@ -303,6 +313,7 @@ export default function AdminDashboard() {
                                      <span className="text-xs font-semibold text-slate-500 bg-slate-200/50 px-2 py-0.5 rounded-full mb-1 inline-block">{track.category}</span>
                                      <h3 className="font-bold text-slate-800">{track.name}</h3>
                                  </div>
+                                 <div className="text-sm text-slate-500 font-medium">סך אחוזים מהבגרות: {totalBagrutPercent}%</div>
                              </div>
                              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {trackTasks.map(task => (
@@ -311,7 +322,10 @@ export default function AdminDashboard() {
                                         <CardHeader className="py-3 px-4">
                                             <div className="flex justify-between items-start">
                                                 <div className="space-y-1">
-                                                    {task.maxGrade > 0 && <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full inline-block mb-1">עד {task.maxGrade} נק'</span>}
+                                                    <div className="flex flex-wrap gap-1 mb-1">
+                                                        {task.maxGrade > 0 && <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full inline-block">עד {task.maxGrade} נק'</span>}
+                                                        {task.bagrutPercentage > 0 && <span className="text-[10px] font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full inline-block">{task.bagrutPercentage}% מהבגרות</span>}
+                                                    </div>
                                                     <CardTitle className="text-base text-slate-800">{task.title}</CardTitle>
                                                 </div>
                                                 <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-600 h-8 w-8 -mr-2" onClick={() => handleDeleteTask(task.id)}>

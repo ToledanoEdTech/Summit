@@ -81,21 +81,23 @@ service cloud.firestore {
 
     match /tasks/{taskId} {
       function isValidTask(data) {
-        return data.keys().hasOnly(['trackId', 'title', 'description', 'maxGrade', 'createdBy', 'createdAt']) &&
+        return data.keys().hasOnly(['trackId', 'title', 'description', 'maxGrade', 'bagrutPercentage', 'createdBy', 'createdAt']) &&
           data.trackId is string && data.title is string && data.title.size() <= 200 &&
           data.description is string && data.description.size() <= 2000 &&
           data.maxGrade is number && data.maxGrade >= 0 && data.maxGrade <= 100 &&
+          data.bagrutPercentage is number && data.bagrutPercentage >= 0 && data.bagrutPercentage <= 100 &&
           data.createdBy == request.auth.uid &&
           data.createdAt == request.time &&
           exists(/databases/$(database)/documents/tracks/$(data.trackId));
       }
 
       function isValidTaskUpdate(data) {
-        return data.keys().hasOnly(['trackId', 'title', 'description', 'maxGrade', 'createdBy', 'createdAt']) &&
+        return data.keys().hasOnly(['trackId', 'title', 'description', 'maxGrade', 'bagrutPercentage', 'createdBy', 'createdAt']) &&
           data.trackId == existing().trackId && 
           data.title is string && data.title.size() <= 200 &&
           data.description is string && data.description.size() <= 2000 &&
           data.maxGrade is number && data.maxGrade >= 0 && data.maxGrade <= 100 &&
+          data.bagrutPercentage is number && data.bagrutPercentage >= 0 && data.bagrutPercentage <= 100 &&
           data.createdBy == existing().createdBy &&
           data.createdAt == existing().createdAt;
       }

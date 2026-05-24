@@ -292,8 +292,20 @@ export default function StudentDashboard() {
       <div className="max-w-5xl mx-auto space-y-8">
         {tracks.map(track => {
             const trackTasks = tasks.filter(t => t.trackId === track.id);
-            const completedCount = trackTasks.filter(t => progressData[t.id]?.completed).length;
-            const progressPercent = trackTasks.length > 0 ? (completedCount / trackTasks.length) * 100 : 0;
+            const completedTasks = trackTasks.filter(t => progressData[t.id]?.completed);
+            const completedCount = completedTasks.length;
+            
+            const totalBagrutPercent = trackTasks.reduce((acc, t) => acc + (t.bagrutPercentage || 0), 0);
+            const completedBagrutPercent = completedTasks.reduce((acc, t) => acc + (t.bagrutPercentage || 0), 0);
+            const remainingBagrutPercent = totalBagrutPercent - completedBagrutPercent;
+            
+            const weightedGrade = completedTasks.reduce((acc, t) => {
+                const prog = progressData[t.id];
+                if (prog && prog.grade != null && t.maxGrade > 0) {
+                    return acc + (prog.grade / t.maxGrade) * (t.bagrutPercentage || 0);
+                }
+                return acc;
+            }, 0);
 
             return (
                 <div key={track.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
@@ -303,10 +315,17 @@ export default function StudentDashboard() {
                            <h2 className="text-2xl font-bold text-slate-800">{track.name}</h2>
                            {track.description && <p className="text-slate-500 mt-1">{track.description}</p>}
                         </div>
-                        <div className="text-center bg-slate-50 p-3 rounded-xl border border-slate-100 min-w-[120px]">
-                            <p className="text-xs text-slate-500 font-semibold mb-1 uppercase tracking-wider">התקדמות במסלול</p>
-                            <p className="text-2xl font-bold text-emerald-600">{Math.round(progressPercent)}%</p>
-                            <p className="text-xs text-slate-400 mt-0.5">{completedCount} מתוך {trackTasks.length} מטלות</p>
+                        <div className="flex gap-4">
+                            <div className="text-center bg-purple-50 p-3 rounded-xl border border-purple-100 min-w-[120px]">
+                                <p className="text-xs text-purple-600 font-semibold mb-1 uppercase tracking-wider">אחוז מהבגרות</p>
+                                <p className="text-2xl font-bold text-purple-700">{completedBagrutPercent}%</p>
+                                <p className="text-xs text-purple-500 mt-0.5">נותרו: {remainingBagrutPercent}%</p>
+                            </div>
+                            <div className="text-center bg-sky-50 p-3 rounded-xl border border-sky-100 min-w-[120px]">
+                                <p className="text-xs text-sky-600 font-semibold mb-1 uppercase tracking-wider">ציון משוקלל</p>
+                                <p className="text-2xl font-bold text-sky-700">{Math.round(weightedGrade * 10) / 10}</p>
+                                <p className="text-xs text-sky-500 mt-0.5">{completedCount} מתוך {trackTasks.length} מטלות סויימו</p>
+                            </div>
                         </div>
                     </div>
 
@@ -334,9 +353,16 @@ export default function StudentDashboard() {
                                                 </button>
                                             </div>
                                             <div className="flex-1">
-                                                <CardTitle className={`text-lg transition-colors ${prog.completed ? 'text-emerald-900 line-through opacity-70' : 'text-slate-800'}`}>
-                                                    {task.title}
-                                                </CardTitle>
+                                                <div className="flex flex-wrap gap-2 items-center mb-1">
+                                                    <CardTitle className={`text-lg transition-colors ${prog.completed ? 'text-emerald-900 line-through opacity-70' : 'text-slate-800'}`}>
+                                                        {task.title}
+                                                    </CardTitle>
+                                                    {task.bagrutPercentage > 0 && (
+                                                        <span className="text-[10px] font-semibold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full inline-block">
+                                                            {task.bagrutPercentage}% מהבגרות
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 {task.description && (
                                                     <p className={`text-sm mt-1 mb-4 ${prog.completed ? 'text-emerald-700/70' : 'text-slate-600'}`}>{task.description}</p>
                                                 )}
